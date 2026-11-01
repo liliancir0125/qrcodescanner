@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>舊 iPad 專用 QR 掃描器</title>
+    <!-- 引入輕量級純 JS QR 解碼庫 -->
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+    <style>
+        body { font-family: sans-serif; text-align: center; padding: 20px; background: #f7f7f7; color: #333; }
+        .btn { font-size: 18px; padding: 15px 25px; background: #007aff; color: white; border: none; border-radius: 12px; cursor: pointer; width: 80%; max-width: 300px; margin: 10px 0; }
+        #resultBox { margin-top: 20px; padding: 15px; background: white; border-radius: 8px; border: 1px solid #ddd; word-break: break-all; display: none; }
+        canvas { display: none; }
+    </style>
+</head>
+<body>
+
+    <h2>QR Code 掃描小幫手</h2>
+    <p>點擊下方按鈕拍照，系統將自動辨識：</p>
+
+    <!-- 隱藏的檔案上傳欄位，支援相機調用 -->
+    <input type="file" id="fileInput" accept="image/*" capture="environment" style="display:none;" onchange="handleImage(this)">
+    
+    <button class="btn" onclick="document.getElementById('fileInput').click()">開啟相機掃描</button>
+
+    <div id="resultBox">
+        <h3>辨識結果：</h3>
+        <p id="resultText"></p>
+        <a id="resultLink" href="#" target="_blank" style="display:none; color: #007aff; font-size: 18px;">點擊開啟連結</a>
+    </div>
+
+    <canvas id="canvas"></canvas>
+
+    <script>
+        function handleImage(input) {
+            if (input.files && input.files[0]) {
+                var reader = new FileReader();
+                reader.onload = function (e) {
+                    var img = new Image();
+                    img.onload = function () {
+                        var canvas = document.getElementById('canvas');
+                        var ctx = canvas.getContext('2d');
+                        
+                        // 自動將圖片長寬限制在 800px 以內，防止舊 iPad 記憶體不足
+                        var max_size = 800;
+                        var width = img.width;
+                        var height = img.height;
+                        if (width > height) {
+                            if (width > max_size) { height *= max_size / width; width = max_size; }
+                        } else {
+                            if (height > max_size) { width *= max_size / height; height = max_size; }
+                        }
+                        
+                        canvas.width = width;
+                        canvas.height = height;
+                        ctx.drawImage(img, 0, 0, width, height);
+                        
+                        // 取得像素資料並讓 jsQR 解析
+                        var imageData = ctx.getImageData(0, 0, width, height);
+                        var code = jsQR(imageData.data, imageData.width, imageData.height);
+                        
+                        var box = document.getElementById('resultBox');
+                        var textElem = document.getElementById('resultText');
+                        var linkElem = document.getElementById('resultLink');
+                        
+                        box.style.display = "block";
+                        if (code) {
+                            textElem.innerText = code.data;
+                            if (code.data.startsWith('http://') || code.data.startsWith('https://')) {
+                                linkElem.href = code.data;
+                                linkElem.style.display = "inline-block";
+                                linkElem.innerText = "前往連結：" + code.data;
+                            } else {
+                                linkElem.style.display = "none";
+                            }
+                        } else {
+                            textElem.innerText = "無法辨識，請確保 QR Code 清晰且無反光後重試。";
+                            linkElem.style.display = "none";
+                        }
+                    }
+                    img.src = e.target.result;
+                }
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+    </script>
+</body>
+</html>
